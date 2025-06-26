@@ -2,6 +2,8 @@ use microgrep::{Config, run};
 use std::env;
 use std::process;
 
+// Для запуска с выводом в файл: cargo run -- to poem.txt > output.txt
+// Для запуска: cargo run -- to poem.txt
 fn main() {
     let args: Vec<String> = env::args().collect();
 
