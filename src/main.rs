@@ -5,9 +5,9 @@ use std::process;
 // Для запуска с выводом в файл: cargo run -- to poem.txt > output.txt
 // Для запуска: cargo run -- to poem.txt
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    //let args: Vec<String> = collect();
 
-    let config = Config::build(&args).unwrap_or_else(|err| {
+    let config = Config::build(env::args()).unwrap_or_else(|err| {
         eprintln!("Problem parsing arguments: {err}");
         process::exit(1);
     });
