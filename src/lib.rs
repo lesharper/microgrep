@@ -1,7 +1,5 @@
-use std::env;
-use std::env::Args;
 use std::error::Error;
-use std::fs; // <--- Добавляем для работы с переменными окружения
+use std::fs;
 
 pub struct Config {
     pub query: String,
@@ -9,60 +7,42 @@ pub struct Config {
     pub ignore_case: bool,
 }
 
-impl Config {
-    pub fn build(mut args: Args) -> Result<Config, &'static str> {
-        if args.len() < 3 {
-            return Err("not enough arguments");
-        }
-        args.next();
-        let query = args.next().ok_or("Missing required argument: query")?;
-        let file_path = args.next().ok_or("Missing required argument: file_path")?;
-
-        // По умолчанию устанавливаем ignore_case в true, как было в оригинале
-        let mut ignore_case = true;
-
-        // Пытаемся прочитать переменную окружения с именем "IGNORE_CASE"
-        // env::var("IGNORE_CASE") вернет Ok(String), если переменная установлена,
-        // или Err(VarError), если нет.
-        if let Ok(var_value) = env::var("IGNORE_CASE") {
-            // Если переменная установлена, проверяем её значение.
-            // .eq_ignore_ascii_case("false") позволяет сравнивать без учета регистра.
-            if var_value.eq_ignore_ascii_case("false") {
-                ignore_case = false; // Отключаем case-insensitive поиск
-            }
-            // Если значение переменной "true" или что-то другое,
-            // ignore_case останется true, сохраняя поведение по умолчанию.
-        }
-        // Если переменная окружения "IGNORE_CASE" не установлена (получен Err),
-        // то блок if let не выполнится, и ignore_case останется true,
-        // что тоже соответствует поведению по умолчанию.
-
-        Ok(Config {
-            query,
-            file_path,
-            ignore_case,
-        })
-    }
-}
-
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    let contents = fs::read_to_string(config.file_path)?;
+    let contents = fs::read_to_string(&config.file_path)?;
 
-    println!("With text:\n{contents}");
-
-    println!("Find:\n");
-
-    if config.ignore_case {
-        for line in search_case_insensitive(&config.query, &contents) {
-            println!("{line}");
-        }
+    let results = if config.ignore_case {
+        search_case_insensitive(&config.query, &contents)
     } else {
-        for line in search(&config.query, &contents) {
-            println!("{line}");
-        }
+        search(&config.query, &contents)
+    };
+
+    for line in results {
+        let highlighted = highlight_matches(line, &config.query, config.ignore_case);
+        println!("{highlighted}");
     }
 
     Ok(())
+}
+
+fn highlight_matches(line: &str, query: &str, ignore_case: bool) -> String {
+    let mut result = String::new();
+    let mut last = 0;
+    let line_lower = line.to_lowercase();
+    let query_lower = query.to_lowercase();
+    let query_len = query.len();
+
+    let haystack = if ignore_case { &line_lower } else { line };
+    let needle = if ignore_case { &query_lower } else { query };
+
+    while let Some(start) = haystack[last..].find(needle) {
+        let start = last + start;
+        let end = start + query_len;
+        result.push_str(&line[last..start]);
+        result.push_str(&line[start..end]);
+        last = end;
+    }
+    result.push_str(&line[last..]);
+    result
 }
 
 pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
